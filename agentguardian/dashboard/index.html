@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>AgentGuardian</title>
+<style>
+  body{font-family:system-ui,sans-serif;margin:2rem;background:#0b1120;color:#e2e8f0;}
+  h1{color:#a78bfa;}
+  .cards{display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;}
+  .card{background:#1e293b;padding:1rem 1.5rem;border-radius:12px;min-width:110px;}
+  .n{font-size:1.9rem;font-weight:700;}
+  .allow{color:#4ade80;} .block{color:#f87171;} .appr{color:#fbbf24;}
+  table{width:100%;border-collapse:collapse;background:#1e293b;border-radius:8px;overflow:hidden;}
+  th,td{padding:.5rem 1rem;text-align:left;border-bottom:1px solid #334155;font-size:.82rem;}
+  th{background:#334155;}
+  .badge{padding:.15rem .5rem;border-radius:6px;font-size:.7rem;font-weight:700;}
+  .trust-bar{height:8px;background:#334155;border-radius:4px;overflow:hidden;width:100px;display:inline-block;}
+  .trust-fill{height:100%;background:#4ade80;}
+</style>
+</head>
+<body>
+<h1>🛡️ AgentGuardian <small id="backend" style="font-size:.9rem;color:#94a3b8"></small></h1>
+<div class="cards" id="cards"></div>
+<h3>Agent trust scores</h3>
+<div id="trust"></div>
+<h3>Live action log</h3>
+<table id="log"><thead><tr><th>Time</th><th>Agent</th><th>Tool</th><th>Decision</th><th>Reason</th></tr></thead><tbody></tbody></table>
+<script>
+async function load(){
+  const s = await (await fetch('/stats')).json();
+  document.getElementById('backend').textContent = '· engine: '+s.backend;
+  document.getElementById('cards').innerHTML = `
+    <div class="card"><div>Allowed</div><div class="n allow">${s.counters.allowed}</div></div>
+    <div class="card"><div>Blocked</div><div class="n block">${s.counters.blocked}</div></div>
+    <div class="card"><div>Needs Approval</div><div class="n appr">${s.counters.approval}</div></div>`;
+  document.getElementById('trust').innerHTML = Object.entries(s.trust_scores).map(([a,v])=>`
+    <div style="margin:.3rem 0">${a}: <span class="trust-bar"><span class="trust-fill" style="width:${v*100}%"></span></span> ${v.toFixed(2)}</div>`).join('') || '<i>no activity yet</i>';
+  const log = await (await fetch('/audit')).json();
+  document.querySelector('#log tbody').innerHTML = log.map(e=>{
+    const cls = e.allow?'allow':(e.require_approval?'appr':'block');
+    const txt = e.allow?'ALLOW':(e.require_approval?'APPROVAL':'BLOCK');
+    return `<tr><td>${new Date(e.ts*1000).toLocaleTimeString()}</td><td>${e.agent}</td><td>${e.tool}</td>
+    <td><span class="badge ${cls}" style="background:#334155">${txt}</span></td><td>${e.reason}</td></tr>`;
+  }).join('');
+}
+load(); setInterval(load,3000);
+</script>
+</body>
+</html>

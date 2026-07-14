@@ -1,0 +1,31 @@
+# Default decision when no rule matches
+default: deny
+
+rules:
+  # research agent: may read, may not write/send
+  - agent: research-agent
+    allow_tools: [web_search, read_crm, read_file]
+    deny_tools: [send_email, delete_file]
+
+  # sales agent: may send emails but not spend money above a limit
+  - agent: sales-agent
+    allow_tools: [read_crm, send_email, create_lead]
+    conditions:
+      - tool: send_email
+        require:
+          field: recipient_domain
+          not_in: [competitor.com]
+
+  # any agent: pause/deny actions costing more than $100
+  - agent: "*"
+    conditions:
+      - tool: "*"
+        require:
+          field: cost_usd
+          max: 100
+        on_violation: require_approval   # blocks + flags for human sign-off
+
+  # coding agent: sandbox only
+  - agent: coding-agent
+    allow_tools: [read_file, write_file, run_tests]
+    deny_tools: [shell_exec, deploy]
